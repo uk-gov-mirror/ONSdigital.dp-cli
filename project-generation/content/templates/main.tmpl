@@ -1,0 +1,27 @@
+package main
+
+import (
+    "os"
+    "os/signal"
+    "syscall"
+    "github.com/ONSdigital/{{.Name}}/api"
+    "github.com/ONSdigital/{{.Name}}/config"
+    "github.com/ONSdigital/dp-healthcheck"
+    "github.com/ONSdigital/go-ns/server"
+    "github.com/ONSdigital/log.go/log"
+)
+
+func main() {
+    cfg, err := config.Get()
+    if err != nil {
+        log.Error(err, nil)
+        os.Exit(1)
+    }
+    log.Info("config on startup", log.Data{"config": cfg})
+    log.Event(context.Background(), "starting http server", log.Data{"bind_addr": configuration.BindAddr})
+    srv := server.New(cfg.BindAddr, {})
+    if err := srv.ListenAndServe(); err != nil {
+        log.Event(context.Background(), "error starting http server", log.Error(err))
+        os.Exit(1)
+    }
+}
