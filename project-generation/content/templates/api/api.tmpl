@@ -14,13 +14,16 @@ type API struct {
     router *mux.Router
 }
 
+// CreateAndInitialise manages all the routes configured to the API
 func CreateAndInitialise(cfg config.Config, errorChan chan) {
     router := mux.NewRouter()
     
     healthCheckHandler := healcheck.NewMiddleware(healthCheck.do)
-    middleware := alice.New(healthCheckHandler)
+    middlewareChain := alice.New(healthCheckHandler)
+    
+    alice := middlewareChain.Then(router)
 
-    httpServer = server.New(cfg.BindAddr, middleware.Then(router))
+    httpServer = server.New(cfg.BindAddr, alice)
 
     // Disable this here to allow main to manage graceful shutdown of the entire app.
     httpServer.HandleOSSignals = false
@@ -31,9 +34,24 @@ func CreateAndInitialise(cfg config.Config, errorChan chan) {
             log.ErrorC("api http server returned error", err, nil)
             errorChan <- err
         }
+    }()
 }
 
+// routes contains all endpoints for the API
 func routes(router *mux.Router) *API {
     api := API{router: router}
-    
+
+    api.router.HandleFunc("/hello", api.getHelloHandler).Methods("GET")
+
+    return &api
+
+}
+
+// Close represents the graceful shutting down of the http server
+func Close(ctx context.Context) error {
+    if err := httpServer.Shutdown(ctx); err != nil {
+        return err
+    }
+    log.InfoCtx(ctx, "graceful shutdown of http server complete", nil)
+    return nil
 }
