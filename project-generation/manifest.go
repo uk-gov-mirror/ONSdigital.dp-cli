@@ -98,15 +98,10 @@ var applicationFiles = []fileGen{
 
 var controllerFiles = []fileGen{
 	{
-<<<<<<< HEAD
 		templatePath: "handlers/handlers",
 		outputPath:   "handlers/handlers",
 		extension:    ".go",
 		filePrefix:   "",
-=======
-		path:      "handlers/handlers", // TODO populate
-		extension: ".go",
->>>>>>> master
 	},
 	{
 		templatePath: "handlers/handlers_test",
@@ -142,11 +137,40 @@ var controllerFiles = []fileGen{
 
 var apiFiles = []fileGen{
 	{
-		// TODO Swagger spec
-		// TODO api/API.go
-		// TODO api/API_test.go
-		// TODO api/Hello.go
-		// TODO api/hello_test.go
+		templatePath: "main",
+		outputPath:   "main",
+		extension:    ".go",
+		filePrefix:   "",
+	},
+	{
+		templatePath: "api/api",
+		outputPath:   "api/api",
+		extension:    ".go",
+		filePrefix:   "",
+	},
+	{
+		templatePath: "api/api_test",
+		outputPath:   "api/api_test",
+		extension:    ".go",
+		filePrefix:   "",
+	},
+	{
+		templatePath: "api/hello",
+		outputPath:   "api/hello",
+		extension:    ".go",
+		filePrefix:   "",
+	},
+	{
+		templatePath: "api/hello_test",
+		outputPath:   "api/hello_test",
+		extension:    ".go",
+		filePrefix:   "",
+	},
+	{
+		templatePath: "swagger",
+		outputPath:   "swagger",
+		extension:    ".yml",
+		filePrefix:   "",
 	},
 }
 
