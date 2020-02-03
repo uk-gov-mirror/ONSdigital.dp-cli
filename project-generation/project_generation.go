@@ -3,16 +3,17 @@ package projectgeneration
 import (
 	"bufio"
 	"context"
-	"fmt"
-	"github.com/ONSdigital/log.go/log"
 	"os"
 	"text/template"
+
+	"github.com/ONSdigital/log.go/log"
 )
 
 type templateModel struct {
 	Name      string
 	Year      int
 	GoVersion string
+	Port      string
 }
 
 type application struct {
@@ -25,12 +26,13 @@ type application struct {
 }
 
 type fileGen struct {
-	path      string
-	extension string
+	templatePath string
+	outputPath   string
+	extension    string
+	filePrefix   string
 }
 
 type ProjectType string
-
 
 const (
 	GenericProject  ProjectType = "generic-project"
@@ -41,25 +43,25 @@ const (
 )
 
 // GenerateProject is the entry point into generating a project
-func GenerateProject(appName, projType, projectLocation, goVer string, repositoryCreated bool) error {
+func GenerateProject(appName, projType, projectLocation, goVer, port string, repositoryCreated bool) error {
 	ctx := context.Background()
 	var err error
 
-	an, pt, pl, gv, err := configureAndValidateArguments(ctx, appName, projType, projectLocation, goVer)
+	an, pt, pl, gv, prt, err := configureAndValidateArguments(ctx, appName, projType, projectLocation, goVer, port)
 	if err != nil {
 		log.Event(ctx, "error configuring and validating arguments", log.Error(err))
 		return err
 	}
 	// If repository was created then this would have already been offered
 	if !repositoryCreated {
-		OfferPurgeProjectDestination(ctx, projectLocation, appName)
+		OfferPurgeProjectDestination(ctx, pl, an)
 	}
 
 	newApp := application{
-		pathToRepo:    pl + appName + "/",
+		pathToRepo:    pl + an + "/",
 		projectType:   ProjectType(pt),
 		name:          an,
-		templateModel: PopulateTemplateModel(an, gv),
+		templateModel: PopulateTemplateModel(an, gv, prt),
 	}
 
 	InitGoModules(ctx, newApp.pathToRepo, newApp.name)
@@ -107,7 +109,9 @@ func (a application) createGenericContentDirectoryStructure() error {
 
 // createApplicationContentDirectoryStructure will create child directories for Application content at a given path
 func (a application) createApplicationContentDirectoryStructure() error {
-	return os.MkdirAll(a.pathToRepo+"ci/scripts", os.ModePerm)
+	os.MkdirAll(a.pathToRepo+"config", os.ModePerm)
+	os.MkdirAll(a.pathToRepo+"ci/scripts", os.ModePerm)
+	return nil
 }
 
 // createAPIContentDirectoryStructure will create child directories for API content at a given path
@@ -140,7 +144,6 @@ func (a application) createEventDrivenContentDirectoryStructure() error {
 
 // generateGenericContent will create all files for Generic content
 func (a application) generateGenericContent() error {
-	fmt.Println("function generateGenericContent hit")
 	err := a.createGenericContentDirectoryStructure()
 	if err != nil {
 		return err
@@ -156,6 +159,7 @@ func (a application) generateGenericContent() error {
 
 // generateApplicationContent will create all files for Application content
 func (a application) generateApplicationContent() error {
+	applyFilePrefixesToManifest(applicationFiles, a.name)
 	err := a.generateGenericContent()
 	if err != nil {
 		return err
@@ -172,6 +176,14 @@ func (a application) generateApplicationContent() error {
 	}
 
 	return nil
+}
+
+func applyFilePrefixesToManifest(f []fileGen, prefix string) {
+	for i := 0; i < len(f); i++ {
+		if f[i].templatePath == "nomad" {
+			f[i].filePrefix = prefix
+		}
+	}
 }
 
 // generateAPIContent will create all files for API content
@@ -247,12 +259,12 @@ func (a application) generateBatchOfFileTemplates(filesToGen []fileGen) error {
 
 // generateFileFromTemplate will generate a single file from templates
 func (a application) generateFileFromTemplate(fileToGen fileGen) (err error) {
-	f, err := os.Create(a.pathToRepo + fileToGen.path + fileToGen.extension)
+	f, err := os.Create(a.pathToRepo + fileToGen.filePrefix + fileToGen.outputPath + fileToGen.extension)
 	if err != nil {
 		return err
 	}
 	writer := bufio.NewWriter(f)
-	tmpl := template.Must(template.ParseFiles("./project-generation/content/templates/" + fileToGen.path + ".tmpl"))
+	tmpl := template.Must(template.ParseFiles("./project-generation/content/templates/" + fileToGen.templatePath + ".tmpl"))
 
 	defer func() {
 		ferr := writer.Flush()
