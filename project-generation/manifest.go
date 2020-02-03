@@ -98,10 +98,15 @@ var applicationFiles = []fileGen{
 
 var controllerFiles = []fileGen{
 	{
+<<<<<<< HEAD
 		templatePath: "handlers/handlers",
 		outputPath:   "handlers/handlers",
 		extension:    ".go",
 		filePrefix:   "",
+=======
+		path:      "handlers/handlers", // TODO populate
+		extension: ".go",
+>>>>>>> master
 	},
 	{
 		templatePath: "handlers/handlers_test",
