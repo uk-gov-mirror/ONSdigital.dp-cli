@@ -1,27 +1,40 @@
 package main
 
 import (
-    "os"
-    "os/signal"
-    "syscall"
-    "github.com/ONSdigital/{{.Name}}/api"
-    "github.com/ONSdigital/{{.Name}}/config"
-    "github.com/ONSdigital/dp-healthcheck"
-    "github.com/ONSdigital/go-ns/server"
-    "github.com/ONSdigital/log.go/log"
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/ONSdigital/go-ns/server"
+	"github.com/ONSdigital/log.go/log"
+	"github.com/rav-pradhan/{{.Name}}/api"
+	"github.com/rav-pradhan/{{.Name}}/config"
 )
 
 func main() {
-    cfg, err := config.Get()
-    if err != nil {
-        log.Error(err, nil)
-        os.Exit(1)
-    }
-    log.Info("config on startup", log.Data{"config": cfg})
-    log.Event(context.Background(), "starting http server", log.Data{"bind_addr": configuration.BindAddr})
-    srv := server.New(cfg.BindAddr, {})
-    if err := srv.ListenAndServe(); err != nil {
-        log.Event(context.Background(), "error starting http server", log.Error(err))
-        os.Exit(1)
-    }
+	log.Namespace = "{{.Name}}"
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	cfg, err := config.Get()
+	exitIfError(err, "unable to retrieve configuration")
+
+	log.Event(context.Background(), "config on startup", log.Data{"config": cfg})
+	log.Event(context.Background(), "starting http server", log.Data{"bind_addr": cfg.BindAddr})
+
+	api := api.CreateAndInitialise()
+
+	srv := server.New(cfg.BindAddr, api.middleware)
+	if err := srv.ListenAndServe(); err != nil {
+		log.Event(context.Background(), "error starting http server", log.Error(err))
+		os.Exit(1)
+	}
+}
+
+func exitIfError(err error, message string) {
+	if err != nil {
+		os.Exit(1)
+	}
 }

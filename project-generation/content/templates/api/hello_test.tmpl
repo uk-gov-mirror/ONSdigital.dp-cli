@@ -3,3 +3,11 @@ package api
 import (
     "testing"
 )
+
+func TestHelloHandler(t *testing.T) {
+    Convey("That getHelloHandler prints 'Hello World'", t, func() {
+        r, err := http.NewRequest("GET", "http://localhost:{{.Port}}/hello", nil)
+        So(err, ShouldBeNil)
+        fmt.Println(r)
+    })
+}

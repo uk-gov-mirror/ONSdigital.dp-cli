@@ -1,57 +1,60 @@
 package api
 
 import (
-    "github.com/ONSdigital/go-ns/healthcheck"
-    "github.com/ONSdigital/go-ns/server"
-    "github.com/ONSdigital/log.go/log"
-    "github.com/gorilla/mux"
-    "github.com/justinas/alice"
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/ONSdigital/go-ns/healthcheck"
+	"github.com/ONSdigital/go-ns/server"
+
+	"github.com/ONSdigital/log.go/log"
+	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 )
 
 var httpServer *server.Server
 
-type API struct {
-    router *mux.Router
+//  TestAPI:  struct with baseline defaults
+type TestAPI struct {
+	router     *mux.Router
+	middleware http.Handler
 }
 
 // CreateAndInitialise manages all the routes configured to the API
-func CreateAndInitialise(cfg config.Config, errorChan chan) {
-    router := mux.NewRouter()
-    
-    healthCheckHandler := healcheck.NewMiddleware(healthCheck.do)
-    middlewareChain := alice.New(healthCheckHandler)
-    
-    alice := middlewareChain.Then(router)
+func CreateAndInitialise() *TestAPI {
+	router := mux.NewRouter()
+	api := BuildAPI(router)
 
-    httpServer = server.New(cfg.BindAddr, alice)
+	return api
 
-    // Disable this here to allow main to manage graceful shutdown of the entire app.
-    httpServer.HandleOSSignals = false
-
-    go func() {
-        log.Debug("Starting api...", nil)
-        if err := httpServer.ListenAndServe(); err != nil {
-            log.ErrorC("api http server returned error", err, nil)
-            errorChan <- err
-        }
-    }()
 }
 
-// routes contains all endpoints for the API
-func routes(router *mux.Router) *API {
-    api := API{router: router}
+// BuildAPI builds routes and middleware
+func BuildAPI(router *mux.Router) *TestAPI {
 
-    api.router.HandleFunc("/hello", api.getHelloHandler).Methods("GET")
+	healthCheckHandler := healthcheck.NewMiddleware(healthcheck.Do)
+	middlewareChain := alice.New(healthCheckHandler)
 
-    return &api
+	alice := middlewareChain.Then(router)
+	apiBuild := TestAPI{router: router, middleware: alice}
 
+	// Generic hello world endpoint
+	apiBuild.router.HandleFunc("/hello", getHelloHandler).Methods("GET")
+
+	return &apiBuild
+
+}
+
+func getHelloHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Hello world")
 }
 
 // Close represents the graceful shutting down of the http server
 func Close(ctx context.Context) error {
-    if err := httpServer.Shutdown(ctx); err != nil {
-        return err
-    }
-    log.InfoCtx(ctx, "graceful shutdown of http server complete", nil)
-    return nil
+	if err := httpServer.Shutdown(ctx); err != nil {
+		return err
+	}
+	// log.InfoCtx(ctx, "graceful shutdown of http server complete", nil)
+	return nil
 }
